@@ -1290,6 +1290,20 @@ namespace RT64 {
 
         bool depthState = false;
         worker->commandList->setFramebuffer(targetDrawCall.fbStorage->colorDepthWrite.get());
+        if (targetDrawCall.clearWideSideBands && (colorTarget != nullptr)) {
+            const uint32_t originalWidth = targetDrawCall.clearWideSideBandOriginalWidth;
+            if ((originalWidth > 0) && (colorTarget->width > (originalWidth + 1))) {
+                const uint32_t sideWidth = (colorTarget->width - originalWidth) / 2;
+                if (sideWidth > 0) {
+                    const RenderRect clearRects[2] = {
+                        RenderRect(0, 0, sideWidth, colorTarget->height),
+                        RenderRect(colorTarget->width - sideWidth, 0, colorTarget->width, colorTarget->height),
+                    };
+                    worker->commandList->clearColor(0, RenderColor(), clearRects, 2);
+                }
+            }
+        }
+
         for (const auto &pair : targetDrawCall.sceneIndices) {
 #       if RT_ENABLED
             if (pair.second) {
@@ -1470,6 +1484,23 @@ namespace RT64 {
 
         targetDrawCall.fbStorage = p.fbStorage;
         targetDrawCall.sceneIndices.clear();
+        targetDrawCall.clearWideSideBands = false;
+        targetDrawCall.clearWideSideBandOriginalWidth = 0;
+
+        static const bool clearWideSideBandsEnabled = []() {
+            const char *v = std::getenv("RT64_CLEAR_WIDE_SIDE_BANDS");
+            return !(v != nullptr && v[0] == '0');
+        }();
+
+        RenderTarget *colorTarget = p.fbStorage->colorTarget;
+        if (clearWideSideBandsEnabled && (colorTarget != nullptr) &&
+            (p.aspectRatioTarget > (p.aspectRatioSource + 0.01f))) {
+            const uint32_t originalWidth = uint32_t(std::lround(float(p.fbWidth) * p.resolutionScale.y));
+            if ((originalWidth > 0) && (colorTarget->width > (originalWidth + 1))) {
+                targetDrawCall.clearWideSideBands = true;
+                targetDrawCall.clearWideSideBandOriginalWidth = originalWidth;
+            }
+        }
 
         const float SimilarityPercentage = 0.1f; // TODO: Make more strict once VI ratios are in.
         const float scissorRatio = static_cast<float>(fbPair.scissorRect.width(false, true)) / static_cast<float>(fbPair.scissorRect.height(false, true));

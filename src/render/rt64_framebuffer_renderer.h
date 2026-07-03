@@ -48,6 +48,8 @@ namespace RT64 {
         RenderFramebufferStorage *fbStorage = nullptr;
         std::vector<RasterScene> rasterScenes;
         std::vector<SceneIndexPair> sceneIndices;
+        bool clearWideSideBands = false;
+        uint32_t clearWideSideBandOriginalWidth = 0;
 #   if RT_ENABLED
         std::vector<RaytracingScene> rtScenes;
 #   endif
