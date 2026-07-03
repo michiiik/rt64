@@ -66,6 +66,10 @@ namespace RT64 {
             }
 
             // Custom origin must not be in use to be able to use the stretched viewport.
+            // Snap: only a perspective scene whose scissor covers the whole framebuffer
+            // width is widened (the overworld camera). The inset aim/photo viewfinder
+            // deliberately does NOT widen — it is pillarboxed instead (see the scoped
+            // side-band clear in the framebuffer renderer).
             bool stretchAspectRatio = false;
             if (useScissorDetection) {
                 if (!proj.scissorRect.isNull()) {
@@ -79,6 +83,7 @@ namespace RT64 {
             }
 
             float projRatioScale = stretchAspectRatio ? (1.0f / p.aspectRatioScale) : 1.0f;
+
             interop::float4x4 &viewMatrix = drawData.modViewTransforms[proj.transformsIndex];
             interop::float4x4 &projMatrix = drawData.modProjTransforms[proj.transformsIndex];
             interop::float4x4 &viewProjMatrix = drawData.modViewProjTransforms[proj.transformsIndex];

@@ -1495,10 +1495,43 @@ namespace RT64 {
         RenderTarget *colorTarget = p.fbStorage->colorTarget;
         if (clearWideSideBandsEnabled && (colorTarget != nullptr) &&
             (p.aspectRatioTarget > (p.aspectRatioSource + 0.01f))) {
-            const uint32_t originalWidth = uint32_t(std::lround(float(p.fbWidth) * p.resolutionScale.y));
-            if ((originalWidth > 0) && (colorTarget->width > (originalWidth + 1))) {
-                targetDrawCall.clearWideSideBands = true;
-                targetDrawCall.clearWideSideBandOriginalWidth = originalWidth;
+            // Scope the pillarbox to the ZOOMED/aim (photo) view only. Snap's overworld
+            // camera renders a perspective scene whose scissor covers the whole frame
+            // width — that one is widened to fill 16:9/21:9 and must NOT be pillarboxed.
+            // The aim viewfinder instead renders a centered, inset perspective scissor
+            // that is left at 4:3; its side margins should be cleared to black. So only
+            // clear when this fbPair's perspective view is inset and none of its
+            // perspective views cover the whole width.
+            bool hasWidePerspective = false;
+            bool hasInsetAimPerspective = false;
+            for (uint32_t pr = 0; pr < fbPair.projectionCount; pr++) {
+                const Projection &prj = fbPair.projections[pr];
+                if ((prj.type != Projection::Type::Perspective) || prj.scissorRect.isNull()) {
+                    continue;
+                }
+                const bool covers = (prj.scissorRect.ulx <= fbPair.scissorRect.ulx) && (prj.scissorRect.lrx >= fbPair.scissorRect.lrx);
+                if (covers) {
+                    hasWidePerspective = true;
+                    continue;
+                }
+                const int32_t fbW = fbPair.scissorRect.lrx - fbPair.scissorRect.ulx;
+                const int32_t projW = prj.scissorRect.lrx - prj.scissorRect.ulx;
+                const int32_t leftInset = prj.scissorRect.ulx - fbPair.scissorRect.ulx;
+                const int32_t rightInset = fbPair.scissorRect.lrx - prj.scissorRect.lrx;
+                const bool insideFb = (leftInset >= 0) && (rightInset >= 0);
+                const bool centered = std::abs(leftInset - rightInset) <= (fbW / 16);
+                const bool nearFull = (fbW > 0) && (projW * 100 >= fbW * 70);
+                if (insideFb && centered && nearFull) {
+                    hasInsetAimPerspective = true;
+                }
+            }
+
+            if (hasInsetAimPerspective && !hasWidePerspective) {
+                const uint32_t originalWidth = uint32_t(std::lround(float(p.fbWidth) * p.resolutionScale.y));
+                if ((originalWidth > 0) && (colorTarget->width > (originalWidth + 1))) {
+                    targetDrawCall.clearWideSideBands = true;
+                    targetDrawCall.clearWideSideBandOriginalWidth = originalWidth;
+                }
             }
         }
 
