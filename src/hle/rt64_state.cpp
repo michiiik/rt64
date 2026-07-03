@@ -6,6 +6,7 @@
 
 #include <cassert>
 #include <cinttypes>
+#include <cstdlib>
 
 #include "im3d/im3d.h"
 #include "im3d/im3d_math.h"
@@ -1821,6 +1822,29 @@ namespace RT64 {
         const hlslpp::uint2 screenFbSize = newVI.fbSize();
         const uint8_t screenFbSiz = newVI.fbSiz();
         const bool viVisible = newVI.visible();
+        const bool viDrawable =
+            viVisible &&
+            (screenFbSiz >= G_IM_SIZ_16b) &&
+            (screenFbSize.x > 0) && (screenFbSize.y > 0) &&
+            (screenFbSize.x <= VI::Width) && (screenFbSize.y <= VI::Height);
+        if (viVisible && !viDrawable) {
+            static const bool s_logInvalidVI = []() {
+                const char* v = std::getenv("RT64_FB_LOG");
+                return v != nullptr && v[0] != '0';
+            }();
+            if (s_logInvalidVI) {
+                fprintf(stderr,
+                    "[vi-skip] invalid VI origin=0x%08X width=%u size=%ux%u siz=%u "
+                    "h=%u..%u v=%u..%u xScale=%u yScale=%u\n",
+                    newVI.origin, newVI.width,
+                    uint32_t(screenFbSize.x), uint32_t(screenFbSize.y), uint32_t(screenFbSiz),
+                    newVI.hRegion.hStart, newVI.hRegion.hEnd,
+                    newVI.vRegion.vStart, newVI.vRegion.vEnd,
+                    newVI.xTransform.xScale, newVI.yTransform.yScale);
+                fflush(stderr);
+            }
+            return;
+        }
         bool viDifferent = false;
         if (!fromEarlyPresent) {
             // Keep last known screen VI updated.

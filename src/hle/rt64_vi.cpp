@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <memory.h>
 #include <stdio.h>
 
@@ -109,6 +110,9 @@ namespace RT64 {
 
     hlslpp::uint2 VI::fbSize() const {
         hlslpp::uint2 size = { width, 0 };
+        if ((width == 0) || (xTransform.xScale == 0) || (yTransform.yScale == 0) || (vRegion.vEnd <= vRegion.vStart)) {
+            return { 0, 0 };
+        }
         
         // In interlaced without deflickering, the stride of the framebuffer is usually double of 
         // what its actual row size is. We detect for such a case and return half the width.
@@ -122,7 +126,11 @@ namespace RT64 {
 
         // We can make a close estimate of the height the framebuffer will use by using the width
         // that was just fixed to eliminate interlacing.
-        size.y = lround(float(vRegion.vEnd - vRegion.vStart) / (2.0f * yScaleFloat() * (float(size.x) / float(width))));
+        const float heightEstimate = float(vRegion.vEnd - vRegion.vStart) / (2.0f * yScaleFloat() * (float(size.x) / float(width)));
+        if (!std::isfinite(heightEstimate) || (heightEstimate <= 0.0f)) {
+            return { 0, 0 };
+        }
+        size.y = lround(heightEstimate);
 
         // Most of the time, the height is missing a few rows because the framebuffer is offset 
         // at the origin and an extra row is left at the end to account for filtering.
