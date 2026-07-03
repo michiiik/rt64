@@ -1898,7 +1898,22 @@ namespace RT64 {
             if (screenFbSiz >= G_IM_SIZ_16b) {
                 uint32_t screenFbBytes = uint32_t(screenFbSize.x * screenFbSize.y) << (screenFbSiz - 1);
                 present.storage.resize(screenFbBytes);
-                memcpy(present.storage.data(), &RDRAM[screenFbAddress], screenFbBytes);
+                // Clamp the source read to RDRAM. During a VI-mode change the VI origin
+                // and/or the size derived from the (transient) vRegion registers can be
+                // momentarily out of range — e.g. Pokemon Snap's attract demo returning
+                // to the title — which would read past the RDRAM allocation and crash the
+                // graphics thread. Copy only the in-bounds portion and zero the remainder;
+                // the frame settles to a valid copy once the VI is reconfigured.
+                uint32_t copyBytes = 0;
+                if (screenFbAddress < RDRAMSize) {
+                    copyBytes = std::min<uint32_t>(screenFbBytes, RDRAMSize - screenFbAddress);
+                }
+                if (copyBytes > 0) {
+                    memcpy(present.storage.data(), &RDRAM[screenFbAddress], copyBytes);
+                }
+                if (copyBytes < screenFbBytes) {
+                    memset(present.storage.data() + copyBytes, 0, screenFbBytes - copyBytes);
+                }
                 uint64_t newScreenHash = XXH3_64bits(present.storage.data(), screenFbBytes);
                 screenChangesMade = (newScreenHash != lastScreenHash);
                 lastScreenHash = newScreenHash;
