@@ -107,3 +107,13 @@ Asset replacement will leverage the fact that only one contiguous vertex and ind
 RT64 will attempt to perform scene detection by merging as many draw calls as it can as long as they're inside of the same compatible perspective view point. Since all data remains untransformed, bottom-level acceleration structures (BLAS) can be built by using a compute shader to transform vertices to world space instead of screen space. Once these BLAS are built, a top-level acceleration structure (TLAS) is constructed with all the BLAS that were detected.
 
 These structures are used directly for path tracing the scene and generating all lighting in real time. Lighting information is derived from various sources (the game itself, scripts, integrated light editor) and will be detailed more in the future as this feature is closer to a final state.
+
+---
+
+<p align="center">
+  <sub><b>R.A.I.D. — Retro AI Development</b> · a Discord for AI-assisted retro reverse-engineering, decomp &amp; recomp</sub>
+</p>
+
+<p align="center">
+  <a href="https://discord.gg/Ad9BwSzctP"><img src=".github/raid-discord.png" alt="Join the Retro AI Development (R.A.I.D.) Discord" width="200"></a>
+</p>
