@@ -10,4 +10,5 @@
 #define HLSLPP_SCALAR
 #endif
 
+#include <stdlib.h>
 #include "hlsl++.h"
