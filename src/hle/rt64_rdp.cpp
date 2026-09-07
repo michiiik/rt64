@@ -407,6 +407,14 @@ namespace RT64 {
     
     template<bool RGBA32 = false, bool TLUT = false>
     __forceinline void loadWord(uint8_t *TMEM, uint32_t tmemAddress, uint32_t tmemXorMask, const uint8_t *RDRAM, uint32_t textureAddress) {
+        // RDP texture addresses are physical bus addresses. Recompiler hosts
+        // may expose a larger RDRAM window, so preserve its wrapping semantics
+        // before an address becomes a host pointer.
+        constexpr uint32_t RDRAM_HOST_MASK = 0x3FFFFFFFu;
+        auto rdramByte = [&](uint32_t address) {
+            return RDRAM[(address & RDRAM_HOST_MASK) ^ 3];
+        };
+
         // Only sample the first two bytes in TLUT mode.
         uint32_t offsetMask;
         if constexpr (TLUT) {
@@ -419,19 +427,19 @@ namespace RT64 {
         if constexpr (RGBA32) {
             // Split the lower and upper half of the word into the lower and upper half of TMEM.
             const uint32_t UpperTMEM = (RDP_TMEM_BYTES >> 1);
-            TMEM[(tmemAddress + 0) ^ tmemXorMask] = RDRAM[(textureAddress + (0 & offsetMask)) ^ 3];
-            TMEM[(tmemAddress + 1) ^ tmemXorMask] = RDRAM[(textureAddress + (1 & offsetMask)) ^ 3];
-            TMEM[(tmemAddress + 2) ^ tmemXorMask] = RDRAM[(textureAddress + (4 & offsetMask)) ^ 3];
-            TMEM[(tmemAddress + 3) ^ tmemXorMask] = RDRAM[(textureAddress + (5 & offsetMask)) ^ 3];
-            TMEM[((tmemAddress + 0) ^ tmemXorMask) | UpperTMEM] = RDRAM[(textureAddress + (2 & offsetMask)) ^ 3];
-            TMEM[((tmemAddress + 1) ^ tmemXorMask) | UpperTMEM] = RDRAM[(textureAddress + (3 & offsetMask)) ^ 3];
-            TMEM[((tmemAddress + 2) ^ tmemXorMask) | UpperTMEM] = RDRAM[(textureAddress + (6 & offsetMask)) ^ 3];
-            TMEM[((tmemAddress + 3) ^ tmemXorMask) | UpperTMEM] = RDRAM[(textureAddress + (7 & offsetMask)) ^ 3];
+            TMEM[(tmemAddress + 0) ^ tmemXorMask] = rdramByte(textureAddress + (0 & offsetMask));
+            TMEM[(tmemAddress + 1) ^ tmemXorMask] = rdramByte(textureAddress + (1 & offsetMask));
+            TMEM[(tmemAddress + 2) ^ tmemXorMask] = rdramByte(textureAddress + (4 & offsetMask));
+            TMEM[(tmemAddress + 3) ^ tmemXorMask] = rdramByte(textureAddress + (5 & offsetMask));
+            TMEM[((tmemAddress + 0) ^ tmemXorMask) | UpperTMEM] = rdramByte(textureAddress + (2 & offsetMask));
+            TMEM[((tmemAddress + 1) ^ tmemXorMask) | UpperTMEM] = rdramByte(textureAddress + (3 & offsetMask));
+            TMEM[((tmemAddress + 2) ^ tmemXorMask) | UpperTMEM] = rdramByte(textureAddress + (6 & offsetMask));
+            TMEM[((tmemAddress + 3) ^ tmemXorMask) | UpperTMEM] = rdramByte(textureAddress + (7 & offsetMask));
         }
         else {
             // Copy the entire word.
             for (uint32_t i = 0; i < 8; i++) {
-                TMEM[(tmemAddress + i) ^ tmemXorMask] = RDRAM[(textureAddress + (i & offsetMask)) ^ 3];
+                TMEM[(tmemAddress + i) ^ tmemXorMask] = rdramByte(textureAddress + (i & offsetMask));
             }
         }
     }
